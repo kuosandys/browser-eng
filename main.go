@@ -107,7 +107,14 @@ func show(body string) {
 }
 
 func main() {
-	_, body, err := request("http://example.org")
+	args := os.Args
+	if len(args) == 1 {
+		fmt.Println("Please input a URL")
+		os.Exit(1)
+	}
+
+	url := args[1]
+	_, body, err := request(url)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
