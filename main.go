@@ -91,6 +91,21 @@ func request(requestURL string) (map[string]string, string, error) {
 	return headers, body, err
 }
 
+func show(body string) {
+	var inTag bool
+
+	for _, r := range body {
+		c := string(r)
+		if c == "<" {
+			inTag = true
+		} else if c == ">" {
+			inTag = false
+		} else if !inTag {
+			fmt.Print(c)
+		}
+	}
+}
+
 func main() {
 	_, body, err := request("http://example.org")
 	if err != nil {
@@ -98,5 +113,5 @@ func main() {
 		os.Exit(1)
 	}
 
-	fmt.Print(body)
+	show(body)
 }
