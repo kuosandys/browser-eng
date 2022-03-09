@@ -2,8 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/url"
 	"os"
@@ -16,7 +19,7 @@ const (
 
 var (
 	ErrUnsupportedURLScheme = errors.New("unsupported URL scheme")
-	supportedScheme         = "http"
+	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}}
 )
 
 func request(requestURL string) (map[string]string, string, error) {
@@ -33,9 +36,20 @@ func request(requestURL string) (map[string]string, string, error) {
 		return headers, body, ErrUnsupportedURLScheme
 	}
 
+	port := u.Port()
+	if port == "" && u.Scheme == "http" {
+		port = "80"
+	} else if port == "" && u.Scheme == "https" {
+		port = "443"
+	}
+
 	// establish the connection
 	var connection net.Conn
-	connection, err = net.Dial(network, fmt.Sprintf("%s:%s", u.Hostname()+":80"))
+	if u.Scheme == "http" {
+		connection, err = net.Dial(network, fmt.Sprintf("%s:%s", u.Hostname(), port))
+	} else if u.Scheme == "https" {
+		connection, err = tls.Dial(network, fmt.Sprintf("%s:%s", u.Hostname(), port), &tls.Config{ServerName: u.Host})
+	}
 	if err != nil {
 		return headers, body, err
 	}
@@ -80,13 +94,18 @@ func request(requestURL string) (map[string]string, string, error) {
 	}
 
 	// body
-	bytes := c.Buffered()
-	buffer := make([]byte, bytes)
-	_, err = c.Read(buffer)
-	if err != nil {
-		return headers, body, err
+	var buffer bytes.Buffer
+	for {
+		line, err := c.ReadBytes(byte('\n'))
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return headers, body, err
+		}
+		buffer.Write(line)
 	}
-	body = string(buffer)
+	body = buffer.String()
 
 	return headers, body, err
 }
