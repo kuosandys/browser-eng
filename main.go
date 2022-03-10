@@ -20,7 +20,8 @@ const (
 
 var (
 	ErrUnsupportedURLScheme = errors.New("unsupported URL scheme")
-	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}}
+	ErrUnsupportedMediaType = errors.New("unsupported media type")
+	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}, "data": struct{}{}}
 )
 
 func request(requestURL string, additionalRequestHeaders map[string]string) (map[string]string, string, error) {
@@ -44,6 +45,16 @@ func request(requestURL string, additionalRequestHeaders map[string]string) (map
 			return headers, body, err
 		}
 		return headers, contents, nil
+	}
+
+	// handle data scheme
+	if u.Scheme == "data" {
+		s := strings.SplitN(strings.TrimPrefix(requestURL, "data:"), ",", 2)
+		mediaType, data := s[0], s[1]
+		if mediaType != "text/html" && mediaType != "" {
+			return headers, data, ErrUnsupportedMediaType
+		}
+		return headers, data, nil
 	}
 
 	// port
