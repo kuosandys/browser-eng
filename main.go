@@ -125,14 +125,7 @@ func show(body string) {
 	}
 }
 
-func main() {
-	args := os.Args
-	if len(args) == 1 {
-		fmt.Println("Please input a URL")
-		os.Exit(1)
-	}
-
-	url := args[1]
+func load(url string) {
 	_, body, err := request(url)
 	if err != nil {
 		fmt.Println(err)
@@ -140,4 +133,14 @@ func main() {
 	}
 
 	show(body)
+}
+
+func main() {
+	args := os.Args
+	if len(args) == 1 {
+		fmt.Println("Please input a URL")
+		os.Exit(1)
+	}
+
+	load(args[1])
 }
