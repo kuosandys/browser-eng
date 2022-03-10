@@ -157,14 +157,25 @@ func request(requestURL string, additionalRequestHeaders map[string]string) (map
 
 func show(writer io.Writer, body string) {
 	var inTag bool
+	var inBody bool
+	var tagName string
 
 	for _, r := range body {
 		c := string(r)
 		if c == "<" {
 			inTag = true
+			if tagName == "/body" {
+				inBody = false
+			}
 		} else if c == ">" {
 			inTag = false
-		} else if !inTag {
+			if tagName == "body" {
+				inBody = true
+			}
+			tagName = ""
+		} else if inTag {
+			tagName += c
+		} else if inBody {
 			fmt.Fprint(writer, c)
 		}
 	}

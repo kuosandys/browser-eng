@@ -30,4 +30,13 @@ func TestShow(t *testing.T) {
 		want := "line 1\nline 2"
 		assertEqual(t, got, want)
 	})
+
+	t.Run("output only what's in the body tag", func(t *testing.T) {
+		buffer := bytes.Buffer{}
+		show(&buffer, "<html><head><title>some title</title></head><body><h1>hello from the body</h1></body></html>")
+
+		got := buffer.String()
+		want := "hello from the body"
+		assertEqual(t, got, want)
+	})
 }
