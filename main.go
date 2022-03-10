@@ -36,11 +36,18 @@ func request(requestURL string) (map[string]string, string, error) {
 		return headers, body, ErrUnsupportedURLScheme
 	}
 
+	// port
 	port := u.Port()
 	if port == "" && u.Scheme == "http" {
 		port = "80"
 	} else if port == "" && u.Scheme == "https" {
 		port = "443"
+	}
+
+	// path
+	path := u.Path
+	if path == "" {
+		path = "/index.html"
 	}
 
 	// establish the connection
@@ -57,7 +64,17 @@ func request(requestURL string) (map[string]string, string, error) {
 	defer connection.Close()
 
 	// send
-	_, err = connection.Write([]byte(fmt.Sprintf("GET /index.html HTTP/1.0\r\nHost: %s\r\n\r\n", u.Hostname())))
+	request := fmt.Sprintf("GET %s HTTP/1.1\r\n", path)
+	requestHeaders := map[string]string{
+		"Host":       u.Hostname(),
+		"Connection": "close",
+	}
+	for h, v := range requestHeaders {
+		request += fmt.Sprintf("%s: %s\r\n", h, v)
+	}
+	request += "\r\n"
+
+	_, err = connection.Write([]byte(request))
 	if err != nil {
 		return headers, body, err
 	}
