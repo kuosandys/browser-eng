@@ -20,7 +20,7 @@ const (
 
 var (
 	ErrUnsupportedURLScheme = errors.New("unsupported URL scheme")
-	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}}
+	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}}
 )
 
 func request(requestURL string, additionalRequestHeaders map[string]string) (map[string]string, string, error) {
@@ -35,6 +35,15 @@ func request(requestURL string, additionalRequestHeaders map[string]string) (map
 
 	if _, ok := supportedSchemes[u.Scheme]; !ok {
 		return headers, body, ErrUnsupportedURLScheme
+	}
+
+	// handle file scheme
+	if u.Scheme == "file" {
+		contents, err := openLocalFile(strings.TrimPrefix(requestURL, "file://"))
+		if err != nil {
+			return headers, body, err
+		}
+		return headers, contents, nil
 	}
 
 	// port
@@ -158,6 +167,15 @@ func load(url string) {
 	}
 
 	show(body)
+}
+
+func openLocalFile(filePath string) (string, error) {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return string(data), err
 }
 
 func main() {
