@@ -155,7 +155,7 @@ func request(requestURL string, additionalRequestHeaders map[string]string) (map
 	return headers, body, err
 }
 
-func show(body string) {
+func show(writer io.Writer, body string) {
 	var inTag bool
 
 	for _, r := range body {
@@ -165,7 +165,7 @@ func show(body string) {
 		} else if c == ">" {
 			inTag = false
 		} else if !inTag {
-			fmt.Print(c)
+			fmt.Fprint(writer, c)
 		}
 	}
 }
@@ -177,7 +177,7 @@ func load(url string) {
 		os.Exit(1)
 	}
 
-	show(body)
+	show(os.Stdout, body)
 }
 
 func openLocalFile(filePath string) (string, error) {
