@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	network = "tcp"
+	network   = "tcp"
+	userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.109 Safari/537.36"
 )
 
 var (
@@ -22,7 +23,7 @@ var (
 	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}}
 )
 
-func request(requestURL string) (map[string]string, string, error) {
+func request(requestURL string, additionalRequestHeaders map[string]string) (map[string]string, string, error) {
 	var err error
 	var headers = map[string]string{}
 	var body string
@@ -65,14 +66,21 @@ func request(requestURL string) (map[string]string, string, error) {
 
 	// send
 	request := fmt.Sprintf("GET %s HTTP/1.1\r\n", path)
-	requestHeaders := map[string]string{
-		"Host":       u.Hostname(),
-		"Connection": "close",
+	{
+		requestHeaders := map[string]string{
+			"Host":       u.Hostname(),
+			"Connection": "close",
+		}
+		// merge headers; overwrite if necessary
+		for k, v := range additionalRequestHeaders {
+			requestHeaders[k] = v
+		}
+
+		for h, v := range requestHeaders {
+			request += fmt.Sprintf("%s: %s\r\n", h, v)
+		}
+		request += "\r\n"
 	}
-	for h, v := range requestHeaders {
-		request += fmt.Sprintf("%s: %s\r\n", h, v)
-	}
-	request += "\r\n"
 
 	_, err = connection.Write([]byte(request))
 	if err != nil {
@@ -143,7 +151,7 @@ func show(body string) {
 }
 
 func load(url string) {
-	_, body, err := request(url)
+	_, body, err := request(url, map[string]string{"User-Agent": userAgent})
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
