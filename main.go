@@ -229,10 +229,14 @@ func load(requestURL string) error {
 	case "data":
 		s := strings.SplitN(strings.TrimPrefix(requestURL, "data:"), ",", 2)
 		mediaType, data := s[0], s[1]
-		if mediaType != "text/html" && mediaType != "" {
+		switch mediaType {
+		case "text/html":
+			show(os.Stdout, data)
+		case "":
+			fmt.Fprint(os.Stdout, data)
+		default:
 			return ErrUnsupportedMediaType
 		}
-		show(os.Stdout, data)
 	case "view-source":
 		u, err = url.Parse(strings.TrimPrefix(requestURL, "view-source:"))
 		if err != nil {
