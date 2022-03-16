@@ -147,7 +147,7 @@ func show(writer io.Writer, body string) {
 			}
 		case c == ">":
 			inTag = false
-			if tagName == "body" {
+			if strings.Contains(tagName, "body") {
 				inBody = true
 			}
 			tagName = ""
