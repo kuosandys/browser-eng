@@ -21,42 +21,14 @@ const (
 var (
 	ErrUnsupportedURLScheme = errors.New("unsupported URL scheme")
 	ErrUnsupportedMediaType = errors.New("unsupported media type")
-	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}, "data": struct{}{}}
+	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}, "data": struct{}{}, "view-source": struct{}{}}
 	htmlEntities            = map[string]string{"&lt;": "<", "&gt;": ">"}
 )
 
-func request(requestURL string, additionalRequestHeaders map[string]string) (map[string]string, string, error) {
+func request(u *url.URL, additionalRequestHeaders map[string]string) (map[string]string, string, error) {
 	var err error
 	var headers = map[string]string{}
 	var body string
-
-	u, err := url.Parse(requestURL)
-	if err != nil {
-		return headers, body, err
-	}
-
-	if _, ok := supportedSchemes[u.Scheme]; !ok {
-		return headers, body, ErrUnsupportedURLScheme
-	}
-
-	// handle file scheme
-	if u.Scheme == "file" {
-		contents, err := openLocalFile(strings.TrimPrefix(requestURL, "file://"))
-		if err != nil {
-			return headers, body, err
-		}
-		return headers, contents, nil
-	}
-
-	// handle data scheme
-	if u.Scheme == "data" {
-		s := strings.SplitN(strings.TrimPrefix(requestURL, "data:"), ",", 2)
-		mediaType, data := s[0], s[1]
-		if mediaType != "text/html" && mediaType != "" {
-			return headers, data, ErrUnsupportedMediaType
-		}
-		return headers, data, nil
-	}
 
 	// port
 	port := u.Port()
@@ -185,7 +157,7 @@ func show(writer io.Writer, body string) {
 		case c == "&":
 			inEntity = true
 			entityName += c
-		case c == ";":
+		case inEntity && c == ";":
 			entityName += c
 			character := htmlEntities[entityName]
 			fmt.Fprint(writer, character)
@@ -200,14 +172,22 @@ func show(writer io.Writer, body string) {
 	}
 }
 
-func load(url string) {
-	_, body, err := request(url, map[string]string{"User-Agent": userAgent})
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+func transform(body string) string {
+	bodyTransformed := "<body>"
+
+	for _, r := range body {
+		c := string(r)
+		switch true {
+		case c == "<":
+			bodyTransformed += "&lt;"
+		case c == ">":
+			bodyTransformed += "&gt;"
+		default:
+			bodyTransformed += c
+		}
 	}
 
-	show(os.Stdout, body)
+	return bodyTransformed + "</body>"
 }
 
 func openLocalFile(filePath string) (string, error) {
@@ -219,6 +199,56 @@ func openLocalFile(filePath string) (string, error) {
 	return string(data), err
 }
 
+func load(requestURL string) error {
+	var err error
+	u, err := url.Parse(requestURL)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := supportedSchemes[u.Scheme]; !ok {
+		return ErrUnsupportedURLScheme
+	}
+
+	var data string
+	switch u.Scheme {
+	case "http":
+	case "https":
+		_, data, err = request(u, map[string]string{"User-Agent": userAgent})
+		if err != nil {
+			return err
+		}
+
+		show(os.Stdout, data)
+	case "file":
+		data, err = openLocalFile(strings.TrimPrefix(requestURL, "file://"))
+		if err != nil {
+			return err
+		}
+		fmt.Fprint(os.Stdout, data)
+	case "data":
+		s := strings.SplitN(strings.TrimPrefix(requestURL, "data:"), ",", 2)
+		mediaType, data := s[0], s[1]
+		if mediaType != "text/html" && mediaType != "" {
+			return ErrUnsupportedMediaType
+		}
+		show(os.Stdout, data)
+	case "view-source":
+		u, err = url.Parse(strings.TrimPrefix(requestURL, "view-source:"))
+		if err != nil {
+			return err
+		}
+		_, data, err = request(u, map[string]string{"User-Agent": userAgent})
+		if err != nil {
+			return err
+		}
+		show(os.Stdout, transform(data))
+	}
+
+	return nil
+
+}
+
 func main() {
 	args := os.Args
 	if len(args) == 1 {
@@ -226,5 +256,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	load(args[1])
+	err := load(args[1])
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
