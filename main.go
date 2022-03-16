@@ -22,6 +22,7 @@ var (
 	ErrUnsupportedURLScheme = errors.New("unsupported URL scheme")
 	ErrUnsupportedMediaType = errors.New("unsupported media type")
 	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}, "data": struct{}{}}
+	htmlEntities            = map[string]string{"&lt;": "<", "&gt;": ">"}
 )
 
 func request(requestURL string, additionalRequestHeaders map[string]string) (map[string]string, string, error) {
@@ -158,24 +159,42 @@ func request(requestURL string, additionalRequestHeaders map[string]string) (map
 func show(writer io.Writer, body string) {
 	var inTag bool
 	var inBody bool
+	var inEntity bool
 	var tagName string
+	var entityName string
 
 	for _, r := range body {
 		c := string(r)
-		if c == "<" {
+
+		switch true {
+		// tags
+		case c == "<":
 			inTag = true
 			if tagName == "/body" {
 				inBody = false
 			}
-		} else if c == ">" {
+		case c == ">":
 			inTag = false
 			if tagName == "body" {
 				inBody = true
 			}
 			tagName = ""
-		} else if inTag {
+		case inTag:
 			tagName += c
-		} else if inBody {
+		// entities
+		case c == "&":
+			inEntity = true
+			entityName += c
+		case c == ";":
+			entityName += c
+			character := htmlEntities[entityName]
+			fmt.Fprint(writer, character)
+			inEntity = false
+			entityName = ""
+		case inBody && inEntity:
+			entityName += c
+		// body
+		case inBody:
 			fmt.Fprint(writer, c)
 		}
 	}

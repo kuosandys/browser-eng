@@ -39,4 +39,22 @@ func TestShow(t *testing.T) {
 		want := "hello from the body"
 		assertEqual(t, got, want)
 	})
+
+	t.Run("parse the less-than entity", func(t *testing.T) {
+		buffer := bytes.Buffer{}
+		show(&buffer, "<html><head></head><body>&lt;3</body></html>")
+
+		got := buffer.String()
+		want := "<3"
+		assertEqual(t, got, want)
+	})
+
+	t.Run("parse the greater-than entity", func(t *testing.T) {
+		buffer := bytes.Buffer{}
+		show(&buffer, "<html><head></head><body>--&gt;</body></html>")
+
+		got := buffer.String()
+		want := "-->"
+		assertEqual(t, got, want)
+	})
 }
