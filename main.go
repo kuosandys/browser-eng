@@ -14,19 +14,21 @@ import (
 )
 
 const (
-	network   = "tcp"
-	userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.109 Safari/537.36"
+	network      = "tcp"
+	userAgent    = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.109 Safari/537.36"
+	maxRedirects = 20
 )
 
 var (
 	ErrUnsupportedURLScheme  = errors.New("unsupported URL scheme")
 	ErrUnsupportedMediaType  = errors.New("unsupported media type")
 	ErrMissingLocationHeader = errors.New("missing Location header")
+	ErrMaxRedirectsReached   = errors.New("max redirects reached")
 	supportedSchemes         = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}, "data": struct{}{}, "view-source": struct{}{}}
 	htmlEntities             = map[string]string{"&lt;": "<", "&gt;": ">"}
 )
 
-func request(u *url.URL, additionalRequestHeaders map[string]string) (map[string]string, string, error) {
+func request(u *url.URL, additionalRequestHeaders map[string]string, redirected int) (map[string]string, string, error) {
 	var err error
 	var headers = map[string]string{}
 	var body string
@@ -114,6 +116,10 @@ func request(u *url.URL, additionalRequestHeaders map[string]string) (map[string
 
 	// handle redirect (status 3xx)
 	if string(status[0]) == "3" {
+		if redirected == maxRedirects {
+			return headers, body, ErrMaxRedirectsReached
+		}
+
 		location, ok := headers["Location"]
 		if !ok {
 			return headers, body, ErrMissingLocationHeader
@@ -129,7 +135,7 @@ func request(u *url.URL, additionalRequestHeaders map[string]string) (map[string
 			return headers, body, err
 		}
 
-		headers, body, err = request(redirectURL, map[string]string{})
+		headers, body, err = request(redirectURL, map[string]string{}, redirected+1)
 		return headers, body, err
 	}
 
@@ -236,7 +242,7 @@ func load(requestURL string) error {
 	switch u.Scheme {
 	case "http":
 	case "https":
-		_, data, err = request(u, map[string]string{"User-Agent": userAgent})
+		_, data, err = request(u, map[string]string{"User-Agent": userAgent}, 0)
 		if err != nil {
 			return err
 		}
@@ -264,7 +270,7 @@ func load(requestURL string) error {
 		if err != nil {
 			return err
 		}
-		_, data, err = request(u, map[string]string{"User-Agent": userAgent})
+		_, data, err = request(u, map[string]string{"User-Agent": userAgent}, 0)
 		if err != nil {
 			return err
 		}
