@@ -19,10 +19,11 @@ const (
 )
 
 var (
-	ErrUnsupportedURLScheme = errors.New("unsupported URL scheme")
-	ErrUnsupportedMediaType = errors.New("unsupported media type")
-	supportedSchemes        = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}, "data": struct{}{}, "view-source": struct{}{}}
-	htmlEntities            = map[string]string{"&lt;": "<", "&gt;": ">"}
+	ErrUnsupportedURLScheme  = errors.New("unsupported URL scheme")
+	ErrUnsupportedMediaType  = errors.New("unsupported media type")
+	ErrMissingLocationHeader = errors.New("missing Location header")
+	supportedSchemes         = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}, "data": struct{}{}, "view-source": struct{}{}}
+	htmlEntities             = map[string]string{"&lt;": "<", "&gt;": ">"}
 )
 
 func request(u *url.URL, additionalRequestHeaders map[string]string) (map[string]string, string, error) {
@@ -58,7 +59,7 @@ func request(u *url.URL, additionalRequestHeaders map[string]string) (map[string
 	defer connection.Close()
 
 	// send
-	request := fmt.Sprintf("GET %s HTTP/1.1\r\n", path)
+	req := fmt.Sprintf("GET %s HTTP/1.1\r\n", path)
 	{
 		requestHeaders := map[string]string{
 			"Host":       u.Hostname(),
@@ -70,12 +71,12 @@ func request(u *url.URL, additionalRequestHeaders map[string]string) (map[string
 		}
 
 		for h, v := range requestHeaders {
-			request += fmt.Sprintf("%s: %s\r\n", h, v)
+			req += fmt.Sprintf("%s: %s\r\n", h, v)
 		}
-		request += "\r\n"
+		req += "\r\n"
 	}
 
-	_, err = connection.Write([]byte(request))
+	_, err = connection.Write([]byte(req))
 	if err != nil {
 		return headers, body, err
 	}
@@ -108,7 +109,28 @@ func request(u *url.URL, additionalRequestHeaders map[string]string) (map[string
 		}
 		s := strings.SplitN(string(line), ":", 2)
 		header, value := s[0], s[1]
-		headers[strings.TrimSpace(header)] = strings.ToLower(value)
+		headers[strings.TrimSpace(header)] = strings.TrimSpace(strings.ToLower(value))
+	}
+
+	// handle redirect (status 3xx)
+	if string(status[0]) == "3" {
+		location, ok := headers["Location"]
+		if !ok {
+			return headers, body, ErrMissingLocationHeader
+		}
+
+		// missing host and scheme
+		if string(location[0]) == "/" {
+			location = u.Scheme + "://" + u.Hostname() + location
+		}
+
+		redirectURL, err := url.Parse(location)
+		if err != nil {
+			return headers, body, err
+		}
+
+		headers, body, err = request(redirectURL, map[string]string{})
+		return headers, body, err
 	}
 
 	// body
