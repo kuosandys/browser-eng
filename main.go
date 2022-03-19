@@ -111,7 +111,7 @@ func request(u *url.URL, additionalRequestHeaders map[string]string, redirected 
 		}
 		s := strings.SplitN(string(line), ":", 2)
 		header, value := s[0], s[1]
-		headers[strings.TrimSpace(header)] = strings.TrimSpace(strings.ToLower(value))
+		headers[strings.ToLower(strings.TrimSpace(header))] = strings.TrimSpace(strings.ToLower(value))
 	}
 
 	// handle redirect (status 3xx)
@@ -120,7 +120,7 @@ func request(u *url.URL, additionalRequestHeaders map[string]string, redirected 
 			return headers, body, ErrMaxRedirectsReached
 		}
 
-		location, ok := headers["Location"]
+		location, ok := headers["location"]
 		if !ok {
 			return headers, body, ErrMissingLocationHeader
 		}
