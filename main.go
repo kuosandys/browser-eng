@@ -44,7 +44,7 @@ func request(u *url.URL, additionalRequestHeaders map[string]string, redirected 
 	// path
 	path := u.Path
 	if path == "" {
-		path = "/index.html"
+		path = "/"
 	}
 
 	// establish the connection
