@@ -14,7 +14,7 @@ const (
 
 type Browser struct {
 	window *g.MasterWindow
-	url    string
+	text   string
 }
 
 // NewBrowser returns a running new browser with some defaults
@@ -26,8 +26,8 @@ func NewBrowser() *Browser {
 }
 
 // Load sets the url of the browser and runs the main loop
-func (b *Browser) Load(url string) {
-	b.url = url
+func (b *Browser) Load(text string) {
+	b.text = text
 	b.window.Run(b.loop)
 }
 
@@ -36,10 +36,8 @@ func (b *Browser) loop() {
 	g.SingleWindow().Layout(
 		g.Custom(func() {
 			canvas := g.GetCanvas()
-			pos := g.GetCursorScreenPos()
 			color := color.RGBA{200, 75, 75, 255}
-			canvas.AddCircleFilled(pos.Add(image.Pt(100, 150)), 50, color)
-			canvas.AddText(image.Pt(200, 150), color, b.url)
+			canvas.AddText(image.Pt(200, 150), color, b.text)
 		}),
 	)
 }

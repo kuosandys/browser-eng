@@ -154,13 +154,14 @@ func request(u *url.URL, additionalRequestHeaders map[string]string, redirected 
 	return headers, body, err
 }
 
-func show(writer io.Writer, body string) {
+func lex(body string) string {
 	var inTag bool
 	var inBody bool
 	var inEntity bool
 	var tagName string
 	var entityName string
 
+	var text string
 	for _, r := range body {
 		c := string(r)
 
@@ -186,16 +187,18 @@ func show(writer io.Writer, body string) {
 		case inEntity && c == ";":
 			entityName += c
 			character := htmlEntities[entityName]
-			fmt.Fprint(writer, character)
+			text += character
 			inEntity = false
 			entityName = ""
 		case inBody && inEntity:
 			entityName += c
 		// body
 		case inBody:
-			fmt.Fprint(writer, c)
+			text += c
 		}
 	}
+
+	return text
 }
 
 func transform(body string) string {
@@ -225,58 +228,55 @@ func openLocalFile(filePath string) (string, error) {
 	return string(data), err
 }
 
-func load(requestURL string) error {
+func load(requestURL string) (string, error) {
 	var err error
 	u, err := url.Parse(requestURL)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if _, ok := supportedSchemes[u.Scheme]; !ok {
-		return customErrors.ErrUnsupportedURLScheme
+		return "", customErrors.ErrUnsupportedURLScheme
 	}
 
-	var data string
+	var text string
 	switch u.Scheme {
 	case "http":
 	case "https":
-		_, data, err = request(u, map[string]string{"User-Agent": userAgent}, 0)
+		_, data, err := request(u, map[string]string{"User-Agent": userAgent}, 0)
 		if err != nil {
-			return err
+			return text, err
 		}
-
-		show(os.Stdout, data)
+		text = lex(data)
 	case "file":
-		data, err = openLocalFile(strings.TrimPrefix(requestURL, "file://"))
+		text, err = openLocalFile(strings.TrimPrefix(requestURL, "file://"))
 		if err != nil {
-			return err
+			return text, err
 		}
-		fmt.Fprint(os.Stdout, data)
 	case "data":
 		s := strings.SplitN(strings.TrimPrefix(requestURL, "data:"), ",", 2)
 		mediaType, data := s[0], s[1]
 		switch mediaType {
 		case "text/html":
-			show(os.Stdout, data)
+			text = lex(data)
 		case "":
-			fmt.Fprint(os.Stdout, data)
+			text = data
 		default:
-			return customErrors.ErrUnsupportedMediaType
+			return text, customErrors.ErrUnsupportedMediaType
 		}
 	case "view-source":
 		u, err = url.Parse(strings.TrimPrefix(requestURL, "view-source:"))
 		if err != nil {
-			return err
+			return text, err
 		}
-		_, data, err = request(u, map[string]string{"User-Agent": userAgent}, 0)
+		_, data, err := request(u, map[string]string{"User-Agent": userAgent}, 0)
 		if err != nil {
-			return err
+			return text, err
 		}
-		show(os.Stdout, transform(data))
+		text = lex(transform(data))
 	}
 
-	return nil
-
+	return text, nil
 }
 
 func main() {
@@ -286,12 +286,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// err := load(args[1])
-	b := browser.NewBrowser()
-	b.Load(args[1])
+	text, err := load(args[1])
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	os.Exit(1)
-	// }
+	b := browser.NewBrowser()
+	b.Load(text)
 }
