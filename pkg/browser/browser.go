@@ -1,10 +1,13 @@
 package browser
 
 import (
+	"fmt"
 	"image"
 	"image/color"
+	"os"
 
 	g "github.com/AllenDang/giu"
+	"github.com/kuosandys/browser-engineering/pkg/requester"
 )
 
 const (
@@ -25,8 +28,14 @@ func NewBrowser() *Browser {
 	return b
 }
 
-// Load sets the url of the browser and runs the main loop
-func (b *Browser) Load(text string) {
+// Load requests the URL and runs the main loop
+func (b *Browser) Load(url string) {
+	text, err := requester.MakeRequest(url)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	b.text = text
 	b.window.Run(b.loop)
 }
