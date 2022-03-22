@@ -13,6 +13,8 @@ import (
 const (
 	width  = 800
 	height = 600
+	hstep  = 13
+	vstep  = 18
 )
 
 type Browser struct {
@@ -46,7 +48,18 @@ func (b *Browser) loop() {
 		g.Custom(func() {
 			canvas := g.GetCanvas()
 			color := color.RGBA{200, 75, 75, 255}
-			canvas.AddText(image.Pt(200, 150), color, b.text)
+			cursorX := hstep
+			cursorY := vstep
+			for _, c := range b.text {
+				canvas.AddText(image.Pt(cursorX, cursorY), color, string(c))
+
+				if cursorX >= width-(2*hstep) {
+					cursorY += vstep
+					cursorX = hstep
+				} else {
+					cursorX += hstep
+				}
+			}
 		}),
 	)
 }
