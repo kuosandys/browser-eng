@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/kuosandys/browser-engineering/pkg/browser"
 	customErrors "github.com/kuosandys/browser-engineering/pkg/errors"
 )
 
@@ -285,9 +286,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	err := load(args[1])
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	// err := load(args[1])
+	b := browser.NewBrowser()
+	b.Load(args[1])
+
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	os.Exit(1)
+	// }
 }
