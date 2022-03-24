@@ -16,9 +16,16 @@ func CreateLayout(text string, width int) []DisplayItem {
 
 	cursorX := HStep
 	cursorY := VStep
+
 	for _, c := range text {
-		displayList = append(displayList, DisplayItem{X: cursorX, Y: cursorY, Text: string(c)})
-		if cursorX >= width-(2*HStep) {
+		char := string(c)
+
+		displayList = append(displayList, DisplayItem{X: cursorX, Y: cursorY, Text: char})
+
+		if char == "\n" {
+			cursorY += 2 * VStep
+			cursorX = HStep
+		} else if cursorX >= width-(2*HStep) {
 			cursorY += VStep
 			cursorX = HStep
 		} else {
