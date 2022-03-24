@@ -18,9 +18,9 @@ const (
 )
 
 type Browser struct {
-	window      *g.MasterWindow
-	displayList []layout.DisplayItem
-	scroll      int
+	window         *g.MasterWindow
+	displayList    []layout.DisplayItem
+	scrollPosition int
 }
 
 // NewBrowser returns a running new browser with some defaults
@@ -46,21 +46,34 @@ func (b *Browser) Load(url string) {
 // loop draws the actual content of the browser window
 func (b *Browser) loop() {
 	g.SingleWindow().RegisterKeyboardShortcuts(
-		g.WindowShortcut{Key: g.KeyDown, Callback: b.scrollDown},
+		g.WindowShortcut{
+			Key:      g.KeyDown,
+			Callback: func() { b.scroll(-1) }},
+		g.WindowShortcut{
+			Key:      g.KeyUp,
+			Callback: func() { b.scroll(1) }},
 	).Layout(
 		g.Custom(func() {
 			canvas := g.GetCanvas()
 			color := color.RGBA{200, 75, 75, 255}
 			for _, d := range b.displayList {
-				if (d.Y > b.scroll+height) || (d.Y+layout.VStep < b.scroll) {
+				if (d.Y > b.scrollPosition+height) || (d.Y+layout.VStep < b.scrollPosition) {
 					continue
 				}
-				canvas.AddText(image.Pt(d.X, d.Y-b.scroll), color, d.Text)
+				canvas.AddText(image.Pt(d.X, d.Y-b.scrollPosition), color, d.Text)
 			}
 		}),
 	)
 }
 
-func (b *Browser) scrollDown() {
-	b.scroll += scrollStep
+func (b *Browser) scroll(dir int) {
+	switch dir {
+	case 1:
+		if b.scrollPosition == 0 {
+			return
+		}
+		b.scrollPosition -= scrollStep
+	case -1:
+		b.scrollPosition += scrollStep
+	}
 }
