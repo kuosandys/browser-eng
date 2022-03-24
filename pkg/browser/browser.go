@@ -7,19 +7,18 @@ import (
 	"os"
 
 	g "github.com/AllenDang/giu"
+	"github.com/kuosandys/browser-engineering/pkg/layout"
 	"github.com/kuosandys/browser-engineering/pkg/requester"
 )
 
 const (
 	width  = 800
 	height = 600
-	hstep  = 13
-	vstep  = 18
 )
 
 type Browser struct {
-	window *g.MasterWindow
-	text   string
+	window      *g.MasterWindow
+	displayList []layout.DisplayItem
 }
 
 // NewBrowser returns a running new browser with some defaults
@@ -38,28 +37,20 @@ func (b *Browser) Load(url string) {
 		os.Exit(1)
 	}
 
-	b.text = text
-	b.window.Run(b.loop)
+	b.displayList = layout.CreateLayout(text, width)
+	b.window.Run(b.draw)
 }
 
-// loop draws the actual content of the browser window
-func (b *Browser) loop() {
+// draw draws the actual content of the browser window
+func (b *Browser) draw() {
 	g.SingleWindow().Layout(
 		g.Custom(func() {
 			canvas := g.GetCanvas()
 			color := color.RGBA{200, 75, 75, 255}
-			cursorX := hstep
-			cursorY := vstep
-			for _, c := range b.text {
-				canvas.AddText(image.Pt(cursorX, cursorY), color, string(c))
-
-				if cursorX >= width-(2*hstep) {
-					cursorY += vstep
-					cursorX = hstep
-				} else {
-					cursorX += hstep
-				}
+			for _, d := range b.displayList {
+				canvas.AddText(image.Pt(d.X, d.Y), color, d.Text)
 			}
+
 		}),
 	)
 }
