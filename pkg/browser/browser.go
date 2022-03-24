@@ -12,13 +12,15 @@ import (
 )
 
 const (
-	width  = 800
-	height = 600
+	width      = 800
+	height     = 600
+	scrollStep = 100
 )
 
 type Browser struct {
 	window      *g.MasterWindow
 	displayList []layout.DisplayItem
+	scroll      int
 }
 
 // NewBrowser returns a running new browser with some defaults
@@ -38,19 +40,27 @@ func (b *Browser) Load(url string) {
 	}
 
 	b.displayList = layout.CreateLayout(text, width)
-	b.window.Run(b.draw)
+	b.window.Run(b.loop)
 }
 
-// draw draws the actual content of the browser window
-func (b *Browser) draw() {
-	g.SingleWindow().Layout(
+// loop draws the actual content of the browser window
+func (b *Browser) loop() {
+	g.SingleWindow().RegisterKeyboardShortcuts(
+		g.WindowShortcut{Key: g.KeyDown, Callback: b.scrollDown},
+	).Layout(
 		g.Custom(func() {
 			canvas := g.GetCanvas()
 			color := color.RGBA{200, 75, 75, 255}
 			for _, d := range b.displayList {
-				canvas.AddText(image.Pt(d.X, d.Y), color, d.Text)
+				if (d.Y > b.scroll+height) || (d.Y+layout.VStep < b.scroll) {
+					continue
+				}
+				canvas.AddText(image.Pt(d.X, d.Y-b.scroll), color, d.Text)
 			}
-
 		}),
 	)
+}
+
+func (b *Browser) scrollDown() {
+	b.scroll += scrollStep
 }

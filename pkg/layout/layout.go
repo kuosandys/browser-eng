@@ -1,8 +1,8 @@
 package layout
 
 const (
-	hstep = 13
-	vstep = 18
+	HStep = 13
+	VStep = 18
 )
 
 type DisplayItem struct {
@@ -14,15 +14,15 @@ type DisplayItem struct {
 func CreateLayout(text string, width int) []DisplayItem {
 	displayList := []DisplayItem{}
 
-	cursorX := hstep
-	cursorY := vstep
+	cursorX := HStep
+	cursorY := VStep
 	for _, c := range text {
 		displayList = append(displayList, DisplayItem{X: cursorX, Y: cursorY, Text: string(c)})
-		if cursorX >= width-(2*hstep) {
-			cursorY += vstep
-			cursorX = hstep
+		if cursorX >= width-(2*HStep) {
+			cursorY += VStep
+			cursorX = HStep
 		} else {
-			cursorX += hstep
+			cursorX += HStep
 		}
 	}
 
