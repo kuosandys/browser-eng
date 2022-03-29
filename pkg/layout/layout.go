@@ -20,12 +20,15 @@ func CreateLayout(text string, width int) []DisplayItem {
 	for _, c := range text {
 		char := string(c)
 
-		displayList = append(displayList, DisplayItem{X: cursorX, Y: cursorY, Text: char})
-
 		if char == "\n" {
 			cursorY += 2 * VStep
 			cursorX = HStep
-		} else if cursorX >= width-(2*HStep) {
+			continue
+		}
+
+		displayList = append(displayList, DisplayItem{X: cursorX, Y: cursorY, Text: char})
+
+		if cursorX >= width-(3*HStep) {
 			cursorY += VStep
 			cursorX = HStep
 		} else {

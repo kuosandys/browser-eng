@@ -2,11 +2,13 @@ package browser
 
 import (
 	"fmt"
-	"image"
 	"image/color"
 	"os"
 
-	g "github.com/AllenDang/giu"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"github.com/kuosandys/browser-engineering/pkg/layout"
 	"github.com/kuosandys/browser-engineering/pkg/requester"
 )
@@ -18,15 +20,19 @@ const (
 )
 
 type Browser struct {
-	window         *g.MasterWindow
+	window         fyne.Window
 	displayList    []layout.DisplayItem
 	scrollPosition int
 }
 
 // NewBrowser returns a running new browser with some defaults
 func NewBrowser() *Browser {
+	app := app.New()
+	window := app.NewWindow("hello bello")
+	window.Resize(fyne.NewSize(width, height))
+
 	b := &Browser{
-		window: g.NewMasterWindow("hello bello", width, height, g.MasterWindowFlagsNotResizable),
+		window: window,
 	}
 	return b
 }
@@ -40,32 +46,32 @@ func (b *Browser) Load(url string) {
 	}
 
 	b.displayList = layout.CreateLayout(text, width)
-	b.window.Run(b.loop)
+
+	b.window.Canvas().SetOnTypedKey(b.handleKeyEvents)
+
+	b.draw()
+	b.window.ShowAndRun()
 }
 
-// loop draws the actual content of the browser window
-func (b *Browser) loop() {
-	g.SingleWindow().RegisterKeyboardShortcuts(
-		g.WindowShortcut{
-			Key:      g.KeyDown,
-			Callback: func() { b.scroll(-1) }},
-		g.WindowShortcut{
-			Key:      g.KeyUp,
-			Callback: func() { b.scroll(1) }},
-	).Layout(
-		g.Custom(func() {
-			canvas := g.GetCanvas()
-			color := color.RGBA{200, 75, 75, 255}
-			for _, d := range b.displayList {
-				if (d.Y > b.scrollPosition+height) || (d.Y+layout.VStep < b.scrollPosition) {
-					continue
-				}
-				canvas.AddText(image.Pt(d.X, d.Y-b.scrollPosition), color, d.Text)
-			}
-		}),
-	)
+// draw the actual content of the browser window
+func (b *Browser) draw() {
+	textElements := []fyne.CanvasObject{}
+
+	for _, d := range b.displayList {
+		if (d.Y > b.scrollPosition+height) || (d.Y+layout.VStep < b.scrollPosition) {
+			continue
+		}
+
+		text := canvas.NewText(d.Text, color.White)
+		text.Move(fyne.NewPos(float32(d.X), float32(d.Y-b.scrollPosition)))
+		textElements = append(textElements, text)
+	}
+
+	content := container.NewWithoutLayout(textElements...)
+	b.window.SetContent(content)
 }
 
+// scroll moves the scroll position
 func (b *Browser) scroll(dir int) {
 	switch dir {
 	case 1:
@@ -75,5 +81,17 @@ func (b *Browser) scroll(dir int) {
 		b.scrollPosition -= scrollStep
 	case -1:
 		b.scrollPosition += scrollStep
+	}
+}
+
+// handleKeyEvents handles key events
+func (b *Browser) handleKeyEvents(keyEvent *fyne.KeyEvent) {
+	switch keyEvent.Name {
+	case fyne.KeyDown:
+		b.scroll(-1)
+		b.draw()
+	case fyne.KeyUp:
+		b.scroll(1)
+		b.draw()
 	}
 }
