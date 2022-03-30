@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"image/color"
 	"os"
+	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -55,19 +57,8 @@ func (b *Browser) Load(url string) {
 
 // draw the actual content of the browser window
 func (b *Browser) draw() {
-	textElements := []fyne.CanvasObject{}
-
-	for _, d := range b.displayList {
-		if (d.Y > b.scrollPosition+height) || (d.Y+layout.VStep < b.scrollPosition) {
-			continue
-		}
-
-		text := canvas.NewText(d.Text, color.White)
-		text.Move(fyne.NewPos(float32(d.X), float32(d.Y-b.scrollPosition)))
-		textElements = append(textElements, text)
-	}
-
-	content := container.NewWithoutLayout(textElements...)
+	elements := b.parseDisplayListToCanvasElements()
+	content := container.NewWithoutLayout(elements...)
 	b.window.SetContent(content)
 }
 
@@ -94,4 +85,43 @@ func (b *Browser) handleKeyEvents(keyEvent *fyne.KeyEvent) {
 		b.scroll(1)
 		b.draw()
 	}
+}
+
+func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
+	elements := []fyne.CanvasObject{}
+	filePathParts := []string{}
+	var emojiX int
+	var emojiY int
+
+	for _, d := range b.displayList {
+		if (d.Y > b.scrollPosition+height) || (d.Y+layout.VStep < b.scrollPosition) {
+			continue
+		}
+
+		ascii := strings.Trim(strconv.QuoteToASCII(d.Text), "\"")
+		if len(ascii) > 2 && (ascii[0:2] == "\\U" || ascii[0:2] == "\\u") {
+			// handle emoji
+			filePathParts = append(filePathParts, strings.TrimPrefix(ascii[2:], "000"))
+			emojiX = d.X
+			emojiY = d.Y
+		} else {
+			if len(filePathParts) > 0 {
+				// handle end of emoji
+				filePath := os.Getenv("EMOJI_DIR") + strings.ToUpper(strings.Join(filePathParts, "-")) + ".png"
+				img := canvas.NewImageFromFile(filePath)
+				img.Move(fyne.NewPos(float32(emojiX), float32(emojiY)-layout.VStep/2))
+				img.Resize(fyne.NewSize(layout.HStep*2, layout.VStep*2))
+				img.FillMode = canvas.ImageFillContain
+				elements = append(elements, img)
+				filePathParts = []string{}
+			}
+
+			// handle text
+			text := canvas.NewText(d.Text, color.White)
+			text.Move(fyne.NewPos(float32(d.X), float32(d.Y-b.scrollPosition)))
+			elements = append(elements, text)
+		}
+	}
+
+	return elements
 }
