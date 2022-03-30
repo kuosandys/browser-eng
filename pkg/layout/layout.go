@@ -6,21 +6,24 @@ import (
 )
 
 const (
-	HStep = 13
-	VStep = 18
+	DefaultHStep float32 = 13
+	DefaultVStep float32 = 18
 )
 
 type DisplayItem struct {
-	X    int
-	Y    int
+	X    float32
+	Y    float32
 	Text string
 }
 
-func CreateLayout(text string, width int) []DisplayItem {
+func CreateLayout(text string, width float32, scale float32) []DisplayItem {
 	displayList := []DisplayItem{}
 
-	cursorX := HStep
-	cursorY := VStep
+	VStep := DefaultVStep * scale
+	HStep := DefaultHStep * scale
+
+	cursorX := DefaultHStep
+	cursorY := DefaultVStep
 	var inEmoji bool
 
 	for _, c := range text {
@@ -41,17 +44,17 @@ func CreateLayout(text string, width int) []DisplayItem {
 			continue
 		}
 
-		vstep := VStep
+		hStep := HStep
 		if inEmoji {
-			// use two VSteps for emoji unicode characters
-			vstep = VStep * 2
+			// use two HSteps for emoji unicode characters
+			hStep *= 2
 		}
 
-		if cursorX >= width-(3*HStep) {
-			cursorY += vstep
-			cursorX = HStep
+		if cursorX >= width-(3*DefaultHStep) {
+			cursorY += VStep
+			cursorX = DefaultHStep
 		} else {
-			cursorX += vstep
+			cursorX += hStep
 		}
 	}
 

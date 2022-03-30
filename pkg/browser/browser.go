@@ -16,15 +16,17 @@ import (
 )
 
 const (
-	width      = 800
-	height     = 600
-	scrollStep = 100
+	width      float32 = 800
+	height     float32 = 600
+	scrollStep float32 = 100
 )
 
 type Browser struct {
 	window         fyne.Window
+	text           string
 	displayList    []layout.DisplayItem
-	scrollPosition int
+	scrollPosition float32
+	scale          float32
 }
 
 // NewBrowser returns a running new browser with some defaults
@@ -36,6 +38,9 @@ func NewBrowser() *Browser {
 	b := &Browser{
 		window: window,
 	}
+
+	b.scale = 1
+
 	return b
 }
 
@@ -47,7 +52,8 @@ func (b *Browser) Load(url string) {
 		os.Exit(1)
 	}
 
-	b.displayList = layout.CreateLayout(text, width)
+	b.text = text
+	b.displayList = layout.CreateLayout(text, width, b.scale)
 
 	b.window.Canvas().SetOnTypedKey(b.handleKeyEvents)
 
@@ -75,26 +81,39 @@ func (b *Browser) scroll(dir int) {
 	}
 }
 
+func (b *Browser) magnify(in int) {
+	switch in {
+	case 1:
+		b.scale += 0.1
+	case -1:
+		b.scale -= 0.1
+	}
+	b.displayList = layout.CreateLayout(b.text, width, b.scale)
+}
+
 // handleKeyEvents handles key events
 func (b *Browser) handleKeyEvents(keyEvent *fyne.KeyEvent) {
 	switch keyEvent.Name {
 	case fyne.KeyDown:
 		b.scroll(-1)
-		b.draw()
 	case fyne.KeyUp:
 		b.scroll(1)
-		b.draw()
+	case fyne.KeyEqual:
+		b.magnify(1)
+	case fyne.KeyMinus:
+		b.magnify(-1)
 	}
+	b.draw()
 }
 
 func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
 	elements := []fyne.CanvasObject{}
 	filePathParts := []string{}
-	var emojiX int
-	var emojiY int
+	var emojiX float32
+	var emojiY float32
 
 	for _, d := range b.displayList {
-		if (d.Y > b.scrollPosition+height) || (d.Y+layout.VStep < b.scrollPosition) {
+		if (d.Y*b.scale > b.scrollPosition+height) || (d.Y+layout.DefaultVStep*b.scale < b.scrollPosition) {
 			continue
 		}
 
@@ -102,15 +121,15 @@ func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
 		if len(ascii) > 2 && (ascii[0:2] == "\\U" || ascii[0:2] == "\\u") {
 			// handle emoji
 			filePathParts = append(filePathParts, strings.TrimPrefix(ascii[2:], "000"))
-			emojiX = d.X
-			emojiY = d.Y
+			emojiX = d.X * b.scale
+			emojiY = d.Y * b.scale
 		} else {
 			if len(filePathParts) > 0 {
 				// handle end of emoji
 				filePath := os.Getenv("EMOJI_DIR") + strings.ToUpper(strings.Join(filePathParts, "-")) + ".png"
 				img := canvas.NewImageFromFile(filePath)
-				img.Move(fyne.NewPos(float32(emojiX), float32(emojiY)-layout.VStep/2))
-				img.Resize(fyne.NewSize(layout.HStep*2, layout.VStep*2))
+				img.Move(fyne.NewPos(emojiX, emojiY-layout.DefaultVStep/2-b.scrollPosition))
+				img.Resize(fyne.NewSize(layout.DefaultHStep*2*b.scale, layout.DefaultVStep*2*b.scale))
 				img.FillMode = canvas.ImageFillContain
 				elements = append(elements, img)
 				filePathParts = []string{}
@@ -118,7 +137,8 @@ func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
 
 			// handle text
 			text := canvas.NewText(d.Text, color.White)
-			text.Move(fyne.NewPos(float32(d.X), float32(d.Y-b.scrollPosition)))
+			text.TextSize = layout.DefaultHStep * b.scale
+			text.Move(fyne.NewPos(d.X, d.Y-b.scrollPosition))
 			elements = append(elements, text)
 		}
 	}
