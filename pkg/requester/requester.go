@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	supportedSchemes = map[string]struct{}{"http": struct{}{}, "https": struct{}{}, "file": struct{}{}, "data": struct{}{}, "view-source": struct{}{}}
+	supportedSchemes = map[string]struct{}{"http": {}, "https": {}, "file": {}, "data": {}, "view-source": {}}
 )
 
 func request(u *url.URL, additionalRequestHeaders map[string]string, redirected int) (map[string]string, string, error) {
@@ -55,7 +55,9 @@ func request(u *url.URL, additionalRequestHeaders map[string]string, redirected 
 		return headers, body, err
 	}
 
-	defer connection.Close()
+	defer func(connection net.Conn) {
+		err = connection.Close()
+	}(connection)
 
 	// send
 	req := fmt.Sprintf("GET %s HTTP/1.1\r\n", path)

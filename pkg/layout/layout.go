@@ -17,7 +17,7 @@ type DisplayItem struct {
 }
 
 func CreateLayout(text string, width float32, scale float32) []DisplayItem {
-	displayList := []DisplayItem{}
+	var displayList []DisplayItem
 
 	VStep := DefaultVStep * scale
 	HStep := DefaultHStep * scale

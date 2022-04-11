@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+
 	"github.com/kuosandys/browser-engineering/pkg/layout"
 	"github.com/kuosandys/browser-engineering/pkg/requester"
 )
@@ -31,8 +32,8 @@ type Browser struct {
 
 // NewBrowser returns a running new browser with some defaults
 func NewBrowser() *Browser {
-	app := app.New()
-	window := app.NewWindow("hello bello")
+	a := app.New()
+	window := a.NewWindow("hello bello")
 	window.Resize(fyne.NewSize(width, height))
 
 	b := &Browser{
@@ -107,8 +108,8 @@ func (b *Browser) handleKeyEvents(keyEvent *fyne.KeyEvent) {
 }
 
 func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
-	elements := []fyne.CanvasObject{}
-	filePathParts := []string{}
+	var elements []fyne.CanvasObject
+	var filePathParts []string
 	var emojiX float32
 	var emojiY float32
 

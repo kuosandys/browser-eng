@@ -15,8 +15,6 @@ func Lex(body string) string {
 	var tagName string
 	var entityName string
 
-	body += "🏳️‍🌈 🏊🏼‍♀️ "
-
 	var text string
 	for _, r := range body {
 		c := string(r)
