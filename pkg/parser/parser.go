@@ -8,13 +8,34 @@ var (
 	htmlEntities = map[string]string{"&lt;": "<", "&gt;": ">"}
 )
 
-func Lex(body string) string {
+type Text struct {
+	Text string
+}
+
+// NewText creates a new Text object with the specified Text.
+func NewText(text string) *Text {
+	return &Text{Text: text}
+}
+
+type Tag struct {
+	Tag string
+}
+
+// NewTag creates a new Tag object with the specified Tag.
+func NewTag(tag string) *Tag {
+	return &Tag{Tag: tag}
+}
+
+type Token interface {
+	*Tag | *Text
+}
+
+func Lex(body string) []interface{} {
 	var inTag bool
 	var inBody bool
 	var inEntity bool
-	var tagName string
 	var entityName string
-
+	var out []interface{}
 	var text string
 	for _, r := range body {
 		c := string(r)
@@ -22,18 +43,23 @@ func Lex(body string) string {
 		switch true {
 		// tags
 		case c == "<":
+			if len(text) > 0 && !inTag && inBody {
+				out = append(out, NewText(text))
+			}
+			text = ""
 			inTag = true
-			if tagName == "/body" {
+			if text == "/body" {
 				inBody = false
 			}
 		case c == ">":
 			inTag = false
-			if strings.Contains(tagName, "body") {
+			if strings.Contains(text, "body") {
 				inBody = true
 			}
-			tagName = ""
+			out = append(out, NewTag(text))
+			text = ""
 		case inTag:
-			tagName += c
+			text += c
 		// entities
 		case c == "&":
 			inEntity = true
@@ -46,13 +72,17 @@ func Lex(body string) string {
 			entityName = ""
 		case inBody && inEntity:
 			entityName += c
-		// body
-		case inBody:
+		default:
 			text += c
 		}
 	}
 
-	return text
+	// dump any accumulated Text
+	if !inTag && len(text) > 0 {
+		out = append(out, NewText(text))
+	}
+
+	return out
 }
 
 func Transform(body string) string {

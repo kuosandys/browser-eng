@@ -24,7 +24,7 @@ const (
 
 type Browser struct {
 	window         fyne.Window
-	text           string
+	text           []interface{}
 	displayList    []layout.DisplayItem
 	scrollPosition float32
 	scale          float32
@@ -139,6 +139,7 @@ func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
 			// handle text
 			text := canvas.NewText(d.Text, color.White)
 			text.TextSize = layout.DefaultHStep * b.scale
+			text.TextStyle = d.FontStyle
 			text.Move(fyne.NewPos(d.X, d.Y-b.scrollPosition))
 			elements = append(elements, text)
 		}

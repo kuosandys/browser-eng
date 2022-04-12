@@ -155,18 +155,19 @@ func request(u *url.URL, additionalRequestHeaders map[string]string, redirected 
 	return headers, body, err
 }
 
-func MakeRequest(requestURL string) (string, error) {
+func MakeRequest(requestURL string) ([]interface{}, error) {
 	var err error
+	var text []interface{}
+
 	u, err := url.Parse(requestURL)
 	if err != nil {
-		return "", err
+		return text, err
 	}
 
 	if _, ok := supportedSchemes[u.Scheme]; !ok {
-		return "", customErrors.ErrUnsupportedURLScheme
+		return text, customErrors.ErrUnsupportedURLScheme
 	}
 
-	var text string
 	switch u.Scheme {
 	case "http":
 	case "https":
@@ -176,21 +177,18 @@ func MakeRequest(requestURL string) (string, error) {
 		}
 		text = parser.Lex(data)
 	case "file":
-		text, err = openLocalFile(strings.TrimPrefix(requestURL, "file://"))
+		data, err := openLocalFile(strings.TrimPrefix(requestURL, "file://"))
 		if err != nil {
 			return text, err
 		}
+		text = parser.Lex(data)
 	case "data":
 		s := strings.SplitN(strings.TrimPrefix(requestURL, "data:"), ",", 2)
 		mediaType, data := s[0], s[1]
-		switch mediaType {
-		case "text/html":
-			text = parser.Lex(data)
-		case "":
-			text = data
-		default:
+		if mediaType != "text/html" && mediaType != "" {
 			return text, customErrors.ErrUnsupportedMediaType
 		}
+		text = parser.Lex(data)
 	case "view-source":
 		u, err = url.Parse(strings.TrimPrefix(requestURL, "view-source:"))
 		if err != nil {
