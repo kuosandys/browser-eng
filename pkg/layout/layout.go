@@ -73,6 +73,11 @@ func (l *Layout) token(token interface{}, inEmoji *bool) {
 			l.fontSize += 4
 		case "/big":
 			l.fontSize -= 4
+		case "br":
+			l.flush()
+		case "/p":
+			l.flush()
+			l.cursorY += DefaultVStep * l.scale
 		}
 	}
 }
