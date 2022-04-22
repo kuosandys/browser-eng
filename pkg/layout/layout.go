@@ -15,6 +15,16 @@ const (
 	defaultLeading float32 = 1.25
 )
 
+type Layout struct {
+	DisplayList []DisplayItem
+	cursorX     float32
+	cursorY     float32
+	fontStyle   fyne.TextStyle
+	fontSize    float32
+	width       float32
+	scale       float32
+}
+
 type DisplayItem struct {
 	X         float32
 	Y         float32
@@ -22,59 +32,73 @@ type DisplayItem struct {
 	FontStyle fyne.TextStyle
 }
 
-func CreateLayout(token []interface{}, width float32, scale float32) []DisplayItem {
-	var displayList []DisplayItem
-
-	HStep := DefaultHStep * scale
-
-	cursorX := DefaultHStep
-	cursorY := DefaultVStep
-	var inEmoji bool
-
-	spaceSize := fyne.MeasureText(" ", HStep, fyne.TextStyle{})
-	var fontStyle fyne.TextStyle
-
-	for _, tok := range token {
-		switch tok.(type) {
-		case *parser.Text:
-			for _, word := range strings.Fields(tok.(*parser.Text).Text) {
-				displayList = append(displayList, DisplayItem{X: cursorX, Y: cursorY, Text: word, FontStyle: fontStyle})
-
-				ascii := strings.Trim(strconv.QuoteToASCII(word), "\"")
-				if len(ascii) > 2 && (ascii[0:2] == "\\U" || ascii[0:2] == "\\u") {
-					// don't change cursor position for emoji unicode characters
-					inEmoji = true
-					continue
-				}
-
-				hStep := HStep
-				if inEmoji {
-					// use two HSteps for emoji unicode characters
-					hStep *= 2
-				}
-				size := fyne.MeasureText(word, HStep, fyne.TextStyle{})
-
-				if cursorX+size.Width >= width-(3*DefaultHStep) {
-					cursorY += size.Height * defaultLeading
-					cursorX = hStep
-				} else {
-					cursorX += size.Width + spaceSize.Width
-				}
-			}
-		case *parser.Tag:
-			switch tok.(*parser.Tag).Tag {
-			case "i":
-				fontStyle = fyne.TextStyle{Italic: true}
-			case "/i":
-				fontStyle = fyne.TextStyle{Italic: false}
-			case "b":
-				fontStyle = fyne.TextStyle{Bold: true}
-			case "/b":
-				fontStyle = fyne.TextStyle{Bold: false}
-			}
-		}
-
+func NewLayout(tokens []interface{}, width float32, scale float32) *Layout {
+	l := &Layout{
+		DisplayList: make([]DisplayItem, 0),
+		cursorX:     DefaultHStep,
+		cursorY:     DefaultVStep,
+		fontStyle:   fyne.TextStyle{},
+		fontSize:    0,
+		width:       width,
+		scale:       scale,
 	}
 
-	return displayList
+	l.createLayout(tokens)
+
+	return l
+}
+
+func (l *Layout) token(token interface{}, inEmoji *bool) {
+	switch token.(type) {
+	case *parser.Text:
+		l.text(token.(*parser.Text), inEmoji)
+	case *parser.Tag:
+		switch token.(*parser.Tag).Tag {
+		case "i":
+			l.fontStyle.Italic = true
+		case "/i":
+			l.fontStyle.Italic = false
+		case "b":
+			l.fontStyle.Bold = true
+		case "/b":
+			l.fontStyle.Bold = false
+		}
+	}
+}
+
+func (l *Layout) text(token *parser.Text, inEmoji *bool) {
+	spaceSize := fyne.MeasureText(" ", DefaultHStep*l.scale, l.fontStyle)
+
+	for _, word := range strings.Fields(token.Text) {
+		l.DisplayList = append(l.DisplayList, DisplayItem{X: l.cursorX, Y: l.cursorY, Text: word, FontStyle: l.fontStyle})
+
+		ascii := strings.Trim(strconv.QuoteToASCII(word), "\"")
+		if len(ascii) > 2 && (ascii[0:2] == "\\U" || ascii[0:2] == "\\u") {
+			// don't change cursor position for emoji unicode characters
+			*inEmoji = true
+			continue
+		}
+
+		hStep := DefaultHStep * l.scale
+		if *inEmoji {
+			// use two HSteps for emoji unicode characters
+			hStep *= 2
+		}
+		size := fyne.MeasureText(word, DefaultHStep*l.scale, l.fontStyle)
+
+		if l.cursorX+size.Width >= l.width-(3*DefaultHStep) {
+			l.cursorY += size.Height * defaultLeading
+			l.cursorX = hStep
+		} else {
+			l.cursorX += size.Width + spaceSize.Width
+		}
+	}
+}
+
+func (l *Layout) createLayout(tokens []interface{}) {
+	var inEmoji bool
+
+	for _, tok := range tokens {
+		l.token(tok, &inEmoji)
+	}
 }

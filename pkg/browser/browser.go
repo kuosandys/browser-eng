@@ -54,7 +54,7 @@ func (b *Browser) Load(url string) {
 	}
 
 	b.text = text
-	b.displayList = layout.CreateLayout(text, width, b.scale)
+	b.displayList = layout.NewLayout(text, width, b.scale).DisplayList
 
 	b.window.Canvas().SetOnTypedKey(b.handleKeyEvents)
 
@@ -89,7 +89,7 @@ func (b *Browser) magnify(in int) {
 	case -1:
 		b.scale -= 0.1
 	}
-	b.displayList = layout.CreateLayout(b.text, width, b.scale)
+	b.displayList = layout.NewLayout(b.text, width, b.scale).DisplayList
 }
 
 // handleKeyEvents handles key events
