@@ -114,7 +114,7 @@ func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
 	var emojiY float32
 
 	for _, d := range b.displayList {
-		if (d.Y*b.scale > b.scrollPosition+height) || (d.Y+layout.DefaultVStep*b.scale < b.scrollPosition) {
+		if (d.Y > b.scrollPosition+height) || (d.Y+layout.DefaultVStep < b.scrollPosition) {
 			continue
 		}
 
