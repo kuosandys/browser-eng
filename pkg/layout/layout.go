@@ -86,7 +86,7 @@ func (l *Layout) text(token *parser.Text, inEmoji *bool) {
 		}
 		size := fyne.MeasureText(word, DefaultHStep*l.scale, l.fontStyle)
 
-		if l.cursorX+size.Width >= l.width-(3*DefaultHStep) {
+		if l.cursorX+size.Width+spaceSize.Width >= l.width-(5*DefaultHStep) {
 			l.cursorY += size.Height * defaultLeading
 			l.cursorX = hStep
 		} else {
