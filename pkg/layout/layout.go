@@ -16,23 +16,26 @@ const (
 	defaultLeading float32 = 1.25
 )
 
+type font struct {
+	Style fyne.TextStyle
+	Size  float32
+}
+
 type Layout struct {
 	DisplayList []DisplayItem
 	cursorX     float32
 	cursorY     float32
-	fontStyle   fyne.TextStyle
-	fontSize    float32
+	font        font
 	width       float32
 	scale       float32
 	line        []DisplayItem
 }
 
 type DisplayItem struct {
-	X         float32
-	Y         float32
-	Text      string
-	FontStyle fyne.TextStyle
-	FontSize  float32
+	X    float32
+	Y    float32
+	Text string
+	Font font
 }
 
 func NewLayout(tokens []interface{}, width float32, scale float32) *Layout {
@@ -40,8 +43,7 @@ func NewLayout(tokens []interface{}, width float32, scale float32) *Layout {
 		DisplayList: make([]DisplayItem, 0),
 		cursorX:     DefaultHStep,
 		cursorY:     0,
-		fontStyle:   fyne.TextStyle{},
-		fontSize:    DefaultVStep * scale,
+		font:        font{Style: fyne.TextStyle{}, Size: DefaultVStep * scale},
 		width:       width,
 		scale:       scale,
 	}
@@ -51,6 +53,16 @@ func NewLayout(tokens []interface{}, width float32, scale float32) *Layout {
 	return l
 }
 
+func (l *Layout) createLayout(tokens []interface{}) {
+	var inEmoji bool
+
+	for _, tok := range tokens {
+		l.token(tok, &inEmoji)
+	}
+
+	l.flush()
+}
+
 func (l *Layout) token(token interface{}, inEmoji *bool) {
 	switch token.(type) {
 	case *parser.Text:
@@ -58,21 +70,21 @@ func (l *Layout) token(token interface{}, inEmoji *bool) {
 	case *parser.Tag:
 		switch token.(*parser.Tag).Tag {
 		case "i":
-			l.fontStyle.Italic = true
+			l.font.Style.Italic = true
 		case "/i":
-			l.fontStyle.Italic = false
+			l.font.Style.Italic = false
 		case "b":
-			l.fontStyle.Bold = true
+			l.font.Style.Bold = true
 		case "/b":
-			l.fontStyle.Bold = false
+			l.font.Style.Bold = false
 		case "small":
-			l.fontSize -= 2
+			l.font.Size -= 2
 		case "/small":
-			l.fontSize += 2
+			l.font.Size += 2
 		case "big":
-			l.fontSize += 4
+			l.font.Size += 4
 		case "/big":
-			l.fontSize -= 4
+			l.font.Size -= 4
 		case "br":
 			l.flush()
 		case "/p":
@@ -83,11 +95,11 @@ func (l *Layout) token(token interface{}, inEmoji *bool) {
 }
 
 func (l *Layout) text(token *parser.Text, inEmoji *bool) {
-	spaceSize := fyne.MeasureText(" ", l.fontSize, l.fontStyle)
+	spaceSize := fyne.MeasureText(" ", l.font.Size, l.font.Style)
 
 	for _, word := range strings.Fields(token.Text) {
-		size := fyne.MeasureText(word, l.fontSize, l.fontStyle)
-		l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height, Text: word, FontStyle: l.fontStyle, FontSize: l.fontSize})
+		size := fyne.MeasureText(word, l.font.Size, l.font.Style)
+		l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height, Text: word, Font: l.font})
 
 		ascii := strings.Trim(strconv.QuoteToASCII(word), "\"")
 		if len(ascii) > 2 && (ascii[0:2] == "\\U" || ascii[0:2] == "\\u") {
@@ -117,24 +129,14 @@ func (l *Layout) flush() {
 
 	var maxHeight float32
 	for _, item := range l.line {
-		maxHeight = float32(math.Max(float64(maxHeight), float64(fyne.MeasureText(item.Text, item.FontSize, item.FontStyle).Height)))
+		maxHeight = float32(math.Max(float64(maxHeight), float64(fyne.MeasureText(item.Text, item.Font.Size, item.Font.Style).Height)))
 	}
 	baseline := l.cursorY + (maxHeight)*defaultLeading
 	for _, item := range l.line {
-		l.DisplayList = append(l.DisplayList, DisplayItem{X: item.X, Y: baseline - item.Y, Text: item.Text, FontStyle: item.FontStyle, FontSize: item.FontSize})
+		l.DisplayList = append(l.DisplayList, DisplayItem{X: item.X, Y: baseline - item.Y, Text: item.Text, Font: item.Font})
 	}
 
 	l.line = make([]DisplayItem, 0)
 	l.cursorY += maxHeight * defaultLeading
 	l.cursorX = DefaultHStep
-}
-
-func (l *Layout) createLayout(tokens []interface{}) {
-	var inEmoji bool
-
-	for _, tok := range tokens {
-		l.token(tok, &inEmoji)
-	}
-
-	l.flush()
 }

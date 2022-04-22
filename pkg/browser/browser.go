@@ -138,8 +138,8 @@ func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
 
 			// handle text
 			text := canvas.NewText(d.Text, color.White)
-			text.TextSize = d.FontSize
-			text.TextStyle = d.FontStyle
+			text.TextSize = d.Font.Size
+			text.TextStyle = d.Font.Style
 			text.Move(fyne.NewPos(d.X, d.Y-b.scrollPosition))
 			elements = append(elements, text)
 		}
