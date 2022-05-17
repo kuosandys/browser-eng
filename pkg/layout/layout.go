@@ -98,9 +98,6 @@ func (l *Layout) text(token *parser.Text, inEmoji *bool) {
 	spaceSize := fyne.MeasureText(" ", l.font.Size, l.font.Style)
 
 	for _, word := range strings.Fields(token.Text) {
-		size := fyne.MeasureText(word, l.font.Size, l.font.Style)
-		l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height, Text: word, Font: l.font})
-
 		ascii := strings.Trim(strconv.QuoteToASCII(word), "\"")
 		if len(ascii) > 2 && (ascii[0:2] == "\\U" || ascii[0:2] == "\\u") {
 			// don't change cursor position for emoji unicode characters
@@ -114,11 +111,13 @@ func (l *Layout) text(token *parser.Text, inEmoji *bool) {
 			hStep *= 2
 		}
 
-		if l.cursorX+size.Width+spaceSize.Width >= l.width-(5*DefaultHStep) {
+		size := fyne.MeasureText(word, l.font.Size, l.font.Style)
+		if l.cursorX+size.Width+spaceSize.Width >= l.width-(DefaultHStep) {
 			l.flush()
-		} else {
-			l.cursorX += size.Width + spaceSize.Width
 		}
+
+		l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height, Text: word, Font: l.font})
+		l.cursorX += size.Width + spaceSize.Width
 	}
 }
 
