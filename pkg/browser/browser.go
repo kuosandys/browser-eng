@@ -3,7 +3,9 @@ package browser
 import (
 	"fmt"
 	"image/color"
+	"log"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -109,40 +111,76 @@ func (b *Browser) handleKeyEvents(keyEvent *fyne.KeyEvent) {
 
 func (b *Browser) parseDisplayListToCanvasElements() []fyne.CanvasObject {
 	var elements []fyne.CanvasObject
-	var filePathParts []string
-	var emojiX float32
-	var emojiY float32
 
 	for _, d := range b.displayList {
 		if (d.Y > b.scrollPosition+height) || (d.Y+layout.DefaultVStep < b.scrollPosition) {
 			continue
 		}
 
-		ascii := strings.Trim(strconv.QuoteToASCII(d.Text), "\"")
-		if len(ascii) > 2 && (ascii[0:2] == "\\U" || ascii[0:2] == "\\u") {
+		ascii := strings.ToUpper(strings.Trim(strconv.QuoteToASCII(d.Text), "\""))
+
+		if strings.Contains(ascii, "\\U") {
 			// handle emoji
-			filePathParts = append(filePathParts, strings.TrimPrefix(ascii[2:], "000"))
-			emojiX = d.X * b.scale
-			emojiY = d.Y * b.scale
-		} else {
-			if len(filePathParts) > 0 {
-				// handle end of emoji
-				filePath := os.Getenv("EMOJI_DIR") + strings.ToUpper(strings.Join(filePathParts, "-")) + ".png"
+			startIndices := make([]int, 0)
+			i := 0
+			for {
+				searchStr := ascii[i:]
+				startIdx := strings.Index(searchStr, "\\U")
+				if startIdx == -1 {
+					break
+				}
+				startIndices = append(startIndices, startIdx+i)
+				i += startIdx + 2
+			}
+			var filePathParts []string
+			for i := range startIndices {
+				var endIdx int
+				if i == (len(startIndices) - 1) {
+					endIdx = len(ascii)
+				} else {
+					endIdx = startIndices[i+1]
+				}
+
+				reg, err := regexp.Compile("[^a-zA-Z0-9]+")
+				if err != nil {
+					log.Fatal(err)
+				}
+				filePathPart := reg.ReplaceAllString(strings.TrimPrefix(strings.TrimPrefix(ascii[startIndices[i]:endIdx], "\\U"), "000"), "")
+				filePathParts = append(filePathParts, filePathPart)
+
+			}
+
+			var filePaths []string
+			filePath := os.Getenv("EMOJI_DIR") + strings.Join(filePathParts, "-") + ".png"
+			if _, err := os.Stat(filePath); err == nil {
+				filePaths = append(filePaths, filePath)
+			} else {
+				// if the file at the complete path does not exist, try to parse each part as a path
+				for _, filePathPart := range filePathParts {
+					filePath := os.Getenv("EMOJI_DIR") + filePathPart + ".png"
+					if _, err := os.Stat(filePath); err == nil {
+						filePaths = append(filePaths, filePath)
+					}
+				}
+			}
+
+			for _, filePath := range filePaths {
 				img := canvas.NewImageFromFile(filePath)
-				img.Move(fyne.NewPos(emojiX, emojiY-layout.DefaultVStep/2-b.scrollPosition))
+				img.Move(fyne.NewPos(d.X-layout.DefaultHStep/2, d.Y-layout.DefaultVStep/4-b.scrollPosition))
 				img.Resize(fyne.NewSize(layout.DefaultHStep*2*b.scale, layout.DefaultVStep*2*b.scale))
 				img.FillMode = canvas.ImageFillContain
 				elements = append(elements, img)
-				filePathParts = []string{}
 			}
-
-			// handle text
-			text := canvas.NewText(d.Text, color.White)
-			text.TextSize = d.Font.Size
-			text.TextStyle = d.Font.Style
-			text.Move(fyne.NewPos(d.X, d.Y-b.scrollPosition))
-			elements = append(elements, text)
+			continue
 		}
+
+		// handle text
+		text := canvas.NewText(d.Text, color.White)
+		text.TextSize = d.Font.Size
+		text.TextStyle = d.Font.Style
+		text.Move(fyne.NewPos(d.X, d.Y-b.scrollPosition))
+		elements = append(elements, text)
+
 	}
 
 	return elements

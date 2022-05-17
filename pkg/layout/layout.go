@@ -2,7 +2,6 @@ package layout
 
 import (
 	"math"
-	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -54,19 +53,17 @@ func NewLayout(tokens []interface{}, width float32, scale float32) *Layout {
 }
 
 func (l *Layout) createLayout(tokens []interface{}) {
-	var inEmoji bool
-
 	for _, tok := range tokens {
-		l.token(tok, &inEmoji)
+		l.token(tok)
 	}
 
 	l.flush()
 }
 
-func (l *Layout) token(token interface{}, inEmoji *bool) {
+func (l *Layout) token(token interface{}) {
 	switch token.(type) {
 	case *parser.Text:
-		l.text(token.(*parser.Text), inEmoji)
+		l.text(token.(*parser.Text))
 	case *parser.Tag:
 		switch token.(*parser.Tag).Tag {
 		case "i":
@@ -94,23 +91,10 @@ func (l *Layout) token(token interface{}, inEmoji *bool) {
 	}
 }
 
-func (l *Layout) text(token *parser.Text, inEmoji *bool) {
+func (l *Layout) text(token *parser.Text) {
 	spaceSize := fyne.MeasureText(" ", l.font.Size, l.font.Style)
 
 	for _, word := range strings.Fields(token.Text) {
-		ascii := strings.Trim(strconv.QuoteToASCII(word), "\"")
-		if len(ascii) > 2 && (ascii[0:2] == "\\U" || ascii[0:2] == "\\u") {
-			// don't change cursor position for emoji unicode characters
-			*inEmoji = true
-			continue
-		}
-
-		hStep := DefaultHStep * l.scale
-		if *inEmoji {
-			// use two HSteps for emoji unicode characters
-			hStep *= 2
-		}
-
 		size := fyne.MeasureText(word, l.font.Size, l.font.Style)
 		if l.cursorX+size.Width+spaceSize.Width >= l.width-(DefaultHStep) {
 			l.flush()
