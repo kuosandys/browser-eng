@@ -25,6 +25,7 @@ type Layout struct {
 	cursorX     float32
 	cursorY     float32
 	font        font
+	leading     float32
 	width       float32
 	scale       float32
 	line        []DisplayItem
@@ -43,6 +44,7 @@ func NewLayout(tokens []interface{}, width float32, scale float32) *Layout {
 		cursorX:     DefaultHStep,
 		cursorY:     0,
 		font:        font{Style: fyne.TextStyle{}, Size: DefaultVStep * scale},
+		leading:     defaultLeading,
 		width:       width,
 		scale:       scale,
 	}
@@ -87,6 +89,18 @@ func (l *Layout) token(token interface{}) {
 		case "/p":
 			l.flush()
 			l.cursorY += DefaultVStep * l.scale
+		case "sub":
+			l.font.Size /= 2
+			l.leading *= 1.25
+		case "/sub":
+			l.font.Size *= 2
+			l.leading /= 1.25
+		case "sup":
+			l.font.Size /= 2
+			l.leading *= 2
+		case "/sup":
+			l.font.Size *= 2
+			l.leading /= 2
 		}
 	}
 }
@@ -100,8 +114,9 @@ func (l *Layout) text(token *parser.Text) {
 			l.flush()
 		}
 
-		l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height, Text: word, Font: l.font})
-		l.cursorX += size.Width + spaceSize.Width
+		l.cursorX += spaceSize.Width
+		l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height * l.leading, Text: word, Font: l.font})
+		l.cursorX += size.Width
 	}
 }
 
@@ -114,12 +129,12 @@ func (l *Layout) flush() {
 	for _, item := range l.line {
 		maxHeight = float32(math.Max(float64(maxHeight), float64(fyne.MeasureText(item.Text, item.Font.Size, item.Font.Style).Height)))
 	}
-	baseline := l.cursorY + (maxHeight)*defaultLeading
+	baseline := l.cursorY + (maxHeight)
 	for _, item := range l.line {
 		l.DisplayList = append(l.DisplayList, DisplayItem{X: item.X, Y: baseline - item.Y, Text: item.Text, Font: item.Font})
 	}
 
 	l.line = make([]DisplayItem, 0)
-	l.cursorY += maxHeight * defaultLeading
+	l.cursorY += maxHeight * l.leading
 	l.cursorX = DefaultHStep
 }
