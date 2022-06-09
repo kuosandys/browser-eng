@@ -113,8 +113,6 @@ func (l *Layout) text(token *parser.Text) {
 		normalizedWord := strings.Replace(word, "\r", "\n", -1)
 		wordParts := strings.Split(normalizedWord, "\n")
 
-		l.cursorX += spaceSize.Width
-
 		for i, part := range wordParts {
 			if i > 0 {
 				// start on a new line if splitting by \n results in more than one part
@@ -128,6 +126,7 @@ func (l *Layout) text(token *parser.Text) {
 			l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height * l.leading, Text: part, Font: l.font})
 			l.cursorX += size.Width
 		}
+		l.cursorX += spaceSize.Width
 	}
 }
 
