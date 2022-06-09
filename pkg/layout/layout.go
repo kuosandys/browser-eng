@@ -108,15 +108,26 @@ func (l *Layout) token(token interface{}) {
 func (l *Layout) text(token *parser.Text) {
 	spaceSize := fyne.MeasureText(" ", l.font.Size, l.font.Style)
 
-	for _, word := range strings.Fields(token.Text) {
-		size := fyne.MeasureText(word, l.font.Size, l.font.Style)
-		if l.cursorX+size.Width+spaceSize.Width >= l.width-(DefaultHStep) {
-			l.flush()
-		}
+	for _, word := range strings.Split(token.Text, " ") {
+		// handle newline characters
+		normalizedWord := strings.Replace(word, "\r", "\n", -1)
+		wordParts := strings.Split(normalizedWord, "\n")
 
 		l.cursorX += spaceSize.Width
-		l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height * l.leading, Text: word, Font: l.font})
-		l.cursorX += size.Width
+
+		for i, part := range wordParts {
+			if i > 0 {
+				// start on a new line if splitting by \n results in more than one part
+				l.flush()
+			}
+			size := fyne.MeasureText(part, l.font.Size, l.font.Style)
+			if l.cursorX+size.Width+spaceSize.Width >= l.width-(DefaultHStep) {
+				l.flush()
+			}
+
+			l.line = append(l.line, DisplayItem{X: l.cursorX, Y: size.Height * l.leading, Text: part, Font: l.font})
+			l.cursorX += size.Width
+		}
 	}
 }
 
